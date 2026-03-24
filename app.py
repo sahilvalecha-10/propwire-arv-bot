@@ -6,9 +6,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 
-# NOTE: We removed ChromeDriverManager because Streamlit Cloud 
-# uses the pre-installed driver we put in packages.txt
-
+# --- PAGE SETUP ---
 st.set_page_config(page_title="Propwire ARV Bot", layout="wide")
 st.title("🏠 Propwire ARV Automator")
 
@@ -35,30 +33,27 @@ if st.button("Calculate ARV"):
             opts.add_argument("--disable-dev-shm-usage")
             opts.add_argument("--disable-gpu")
             
-            # These two lines point to the 'packages.txt' installs
+            # This is the 'GPS' for the cloud server to find the browser
             opts.binary_location = "/usr/bin/chromium"
             service = Service("/usr/bin/chromedriver")
             
             try:
+                # Start the driver using the Cloud paths
                 driver = webdriver.Chrome(service=service, options=opts)
                 
-                # Login logic
+                # 1. Go to Login
                 driver.get("https://propwire.com/login")
                 time.sleep(3)
                 
-                # Find login fields
+                # 2. Fill Credentials
                 driver.find_element(By.NAME, "email").send_keys(email_addr)
                 driver.find_element(By.NAME, "password").send_keys(password)
+                driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
                 
-                # Click Submit
-                submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
-                submit_btn.click()
-                
-                # Wait for login to process
+                # 3. Wait for the dashboard to load
                 time.sleep(5)
                 
-                # --- DATA PROCESSING LOGIC ---
-                # (Using your mock data logic for now)
+                # --- DATA CALCULATIONS (Using your logic) ---
                 raw_data = [
                     {"address": "Comp 1", "price": 280000, "sqft": 1400, "beds": 3, "baths": 2},
                     {"address": "Comp 2", "price": 240000, "sqft": 1350, "beds": 3, "baths": 1.5},
@@ -68,7 +63,7 @@ if st.button("Calculate ARV"):
                 ]
                 df = pd.DataFrame(raw_data)
 
-                # Strict filters
+                # Filter logic
                 df = df[(df['sqft'] >= s_sqft * 0.85) & (df['sqft'] <= s_sqft * 1.15)]
                 df = df[(df['beds'] == s_beds) & (df['baths'].between(s_baths-1, s_baths+1))]
                 df = df.sort_values(by="price")
@@ -84,7 +79,7 @@ if st.button("Calculate ARV"):
                         st.table(df.tail(3))
                         st.metric("Target ARV", f"${df.tail(3)['price'].mean():,.0f}")
                 else:
-                    st.warning("No comps found with those strict filters.")
+                    st.warning("No comps found in that price range.")
 
             except Exception as e:
                 st.error(f"Error during automation: {e}")
